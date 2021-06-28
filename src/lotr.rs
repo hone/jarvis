@@ -1,4 +1,5 @@
 use crate::{CardSearch, DbCard};
+use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use serde::Deserialize;
 
 const CARDS_API: &str = "https://ringsdb.com/api/public/cards/";
@@ -10,6 +11,7 @@ pub struct Card {
     pub name: String,
     pub text: Option<String>,
     pub imagesrc: Option<String>,
+    pub pack_code: String,
 }
 
 impl DbCard for Card {
@@ -30,6 +32,14 @@ pub struct API;
 impl CardSearch<Card> for API {
     fn cards_api() -> &'static str {
         CARDS_API
+    }
+
+    /// remove two player starter cards
+    fn process_search(results: Vec<&Card>) -> Vec<&Card> {
+        results
+            .into_par_iter()
+            .filter(|card| &card.pack_code != "Starter")
+            .collect()
     }
 }
 
@@ -54,5 +64,13 @@ mod tests {
 
         let results: Vec<&Card> = API::search(&cards, "yazan");
         assert_eq!(results.len(), 1);
+    }
+
+    #[test]
+    fn it_searches_removes_two_player_starter() {
+        let cards = cards_from_fixtures();
+
+        let results: Vec<&Card> = API::search(&cards, "arwen undomiel");
+        assert_eq!(results.len(), 2);
     }
 }
