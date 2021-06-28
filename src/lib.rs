@@ -6,7 +6,7 @@ use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use serde::de::DeserializeOwned;
 use serenity::async_trait;
 
-const EDIT_DISTANCE: usize = 3;
+const EDIT_DISTANCE: usize = 2;
 
 pub enum Card {
     LOTR(lotr::Card),
