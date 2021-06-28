@@ -32,22 +32,22 @@ pub trait CardSearch<T: DbCard + DeserializeOwned> {
     fn cards_api() -> &'static str;
 
     /// process search results. By default, do nothing.
-    fn process_search<'a>(results: Vec<&'a Box<T>>) -> Vec<&'a Box<T>> {
+    fn process_search(results: Vec<&T>) -> Vec<&T> {
         results
     }
 
     /// fetch all cards from a given API
-    async fn cards() -> Result<Vec<Box<T>>, reqwest::Error> {
+    async fn cards() -> Result<Vec<T>, reqwest::Error> {
         Ok(reqwest::get(Self::cards_api())
             .await?
-            .json::<Vec<Box<T>>>()
+            .json::<Vec<T>>()
             .await?)
     }
 
     /// search for cards that match the name. If no exact match is found will try to do a fuzzy
     /// search.
-    fn search<'a>(cards: &'a Vec<Box<T>>, query: impl AsRef<str>) -> Vec<&'a Box<T>> {
-        let exact_matches: Vec<&Box<T>> = cards
+    fn search<'a>(cards: &Vec<T>, query: impl AsRef<str>) -> Vec<&T> {
+        let exact_matches: Vec<&T> = cards
             .iter()
             .filter(|card| card.name().to_lowercase() == query.as_ref().to_lowercase())
             .collect();

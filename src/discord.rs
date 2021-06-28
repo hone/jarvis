@@ -8,12 +8,12 @@ use serenity::{
 
 pub struct MarvelChampionsCards;
 impl TypeMapKey for MarvelChampionsCards {
-    type Value = Vec<Box<marvel_champions::Card>>;
+    type Value = Vec<marvel_champions::Card>;
 }
 
 pub struct LOTRCards;
 impl TypeMapKey for LOTRCards {
-    type Value = Vec<Box<lotr::Card>>;
+    type Value = Vec<lotr::Card>;
 }
 
 #[command]
@@ -50,7 +50,7 @@ pub async fn card(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
 async fn display_card_images<T: DbCard>(
     ctx: &Context,
     msg: &Message,
-    cards: &Vec<&Box<T>>,
+    cards: &Vec<&T>,
 ) -> Result<(), SerenityError> {
     for card in cards {
         if let Some(image) = card.image_url() {

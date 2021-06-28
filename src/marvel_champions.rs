@@ -42,7 +42,8 @@ impl CardSearch<Card> for API {
         CARDS_API
     }
 
-    fn process_search<'a>(results: Vec<&'a Box<Card>>) -> Vec<&'a Box<Card>> {
+    /// remove card duplicates
+    fn process_search(results: Vec<&Card>) -> Vec<&Card> {
         results
             .into_iter()
             .filter(|card| card.duplicate_of_code.is_none())
@@ -54,7 +55,7 @@ impl CardSearch<Card> for API {
 mod tests {
     use super::*;
 
-    fn cards_from_fixtures() -> Vec<Box<Card>> {
+    fn cards_from_fixtures() -> Vec<Card> {
         serde_json::from_str(include_str!("../fixtures/marvelcdb.json")).unwrap()
     }
 
@@ -68,7 +69,7 @@ mod tests {
     fn it_searches_removing_dupes() {
         let cards = cards_from_fixtures();
 
-        let results: Vec<&Box<Card>> = API::search(&cards, "Enhanced Physique");
+        let results: Vec<&Card> = API::search(&cards, "Enhanced Physique");
         assert_eq!(results.len(), 1);
     }
 
@@ -76,7 +77,7 @@ mod tests {
     fn it_searches_doesnt_care_baout_case() {
         let cards = cards_from_fixtures();
 
-        let results: Vec<&Box<Card>> = API::search(&cards, "enhanced physique");
+        let results: Vec<&Card> = API::search(&cards, "enhanced physique");
         assert_eq!(results.len(), 1);
     }
 
@@ -84,7 +85,7 @@ mod tests {
     fn it_searches_for_dashed_names() {
         let cards = cards_from_fixtures();
 
-        let results: Vec<&Box<Card>> = API::search(&cards, "spider tracer");
+        let results: Vec<&Card> = API::search(&cards, "spider tracer");
         assert_eq!(results.len(), 1);
     }
 }

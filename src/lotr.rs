@@ -37,7 +37,7 @@ impl CardSearch<Card> for API {
 mod tests {
     use super::*;
 
-    fn cards_from_fixtures() -> Vec<Box<Card>> {
+    fn cards_from_fixtures() -> Vec<Card> {
         serde_json::from_str(include_str!("../fixtures/ringsdb.json")).unwrap()
     }
 
@@ -52,7 +52,7 @@ mod tests {
     fn it_searches() {
         let cards = cards_from_fixtures();
 
-        let results: Vec<&Box<Card>> = API::search(&cards, "yazan");
+        let results: Vec<&Card> = API::search(&cards, "yazan");
         assert_eq!(results.len(), 1);
     }
 }
