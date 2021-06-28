@@ -1,4 +1,4 @@
-use jarvis::marvel_champions;
+use jarvis::{marvel_champions, CardSearch};
 use serenity::client::Client;
 use serenity::{
     async_trait,
@@ -16,7 +16,7 @@ use std::env;
 
 struct MarvelChampionsCards;
 impl TypeMapKey for MarvelChampionsCards {
-    type Value = Vec<marvel_champions::Card>;
+    type Value = Vec<Box<marvel_champions::Card>>;
 }
 
 struct SlashCommandHandler;
@@ -62,7 +62,7 @@ impl EventHandler for SlashCommandHandler {
             let args = &parts[1..];
             if command == "!card" {
                 let query = args.join(" ");
-                let cards = marvel_champions::search(&cards, &query);
+                let cards = marvel_champions::API::search(&cards, &query);
                 for card in cards {
                     if let Some(image) = card.image_url() {
                         msg.channel_id
@@ -111,7 +111,7 @@ async fn main() {
         .expect("Expected an application id in the environment")
         .parse()
         .expect("application id is not a valid id");
-    let marvel_champions_cards = marvel_champions::cards()
+    let marvel_champions_cards = marvel_champions::API::cards()
         .await
         .expect("Could net fetch cards from marvel champions");
 

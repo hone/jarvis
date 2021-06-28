@@ -26,9 +26,9 @@ impl DbCard for Card {
     }
 }
 
-pub struct Search;
-impl CardSearch<Card> for Search {
-    fn cards_api(&self) -> &str {
+pub struct API;
+impl CardSearch<Card> for API {
+    fn cards_api() -> &'static str {
         CARDS_API
     }
 }
@@ -43,8 +43,7 @@ mod tests {
 
     #[test]
     fn it_parses_all_cards() {
-        let search = Search {};
-        let result = tokio_test::block_on(search.cards());
+        let result = tokio_test::block_on(Search::cards());
 
         assert!(result.is_ok());
     }
@@ -54,7 +53,7 @@ mod tests {
         let search = Search {};
         let cards = cards_from_fixtures();
 
-        let results: Vec<&Box<Card>> = search.search(&cards, "yazan");
+        let results: Vec<&Box<Card>> = API::search(&cards, "yazan");
         assert_eq!(results.len(), 1);
     }
 }

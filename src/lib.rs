@@ -6,6 +6,7 @@ use serenity::async_trait;
 
 const EDIT_DISTANCE: usize = 3;
 
+/// Trait for ThronesDB Card API
 pub trait DbCard {
     fn name(&self) -> &str;
     fn image(&self) -> Option<&str>;
@@ -19,21 +20,27 @@ pub trait DbCard {
 }
 
 #[async_trait]
+/// Trait needed for providing fetching all cards and search for specific cards
 pub trait CardSearch<T: DbCard + DeserializeOwned> {
-    fn cards_api(&self) -> &str;
+    /// Card API URL
+    fn cards_api() -> &'static str;
 
-    fn process_search<'a>(&self, results: Vec<&'a Box<T>>) -> Vec<&'a Box<T>> {
+    /// process search results. By default, do nothing.
+    fn process_search<'a>(results: Vec<&'a Box<T>>) -> Vec<&'a Box<T>> {
         results
     }
 
-    async fn cards(&self) -> Result<Vec<Box<T>>, reqwest::Error> {
-        Ok(reqwest::get(self.cards_api())
+    /// fetch all cards from a given API
+    async fn cards() -> Result<Vec<Box<T>>, reqwest::Error> {
+        Ok(reqwest::get(Self::cards_api())
             .await?
             .json::<Vec<Box<T>>>()
             .await?)
     }
 
-    fn search<'a>(&self, cards: &'a Vec<Box<T>>, query: impl AsRef<str>) -> Vec<&'a Box<T>> {
+    /// search for cards that match the name. If no exact match is found will try to do a fuzzy
+    /// search.
+    fn search<'a>(cards: &'a Vec<Box<T>>, query: impl AsRef<str>) -> Vec<&'a Box<T>> {
         let exact_matches: Vec<&Box<T>> = cards
             .iter()
             .filter(|card| card.name().to_lowercase() == query.as_ref().to_lowercase())
@@ -52,6 +59,6 @@ pub trait CardSearch<T: DbCard + DeserializeOwned> {
                 .collect()
         };
 
-        self.process_search(matches)
+        Self::process_search(matches)
     }
 }
