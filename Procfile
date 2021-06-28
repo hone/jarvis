@@ -1,0 +1,1 @@
+discord: target/release/jarvis

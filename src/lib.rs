@@ -2,6 +2,7 @@ pub mod discord;
 pub mod lotr;
 pub mod marvel_champions;
 
+use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use serde::de::DeserializeOwned;
 use serenity::async_trait;
 
@@ -27,7 +28,7 @@ pub trait DbCard {
 
 #[async_trait]
 /// Trait needed for providing fetching all cards and search for specific cards
-pub trait CardSearch<T: DbCard + DeserializeOwned> {
+pub trait CardSearch<T: DbCard + DeserializeOwned + Sync> {
     /// Card API URL
     fn cards_api() -> &'static str;
 
@@ -46,10 +47,10 @@ pub trait CardSearch<T: DbCard + DeserializeOwned> {
 
     /// search for cards that match the name. If no exact match is found will try to do a fuzzy
     /// search.
-    fn search<'a>(cards: &Vec<T>, query: impl AsRef<str>) -> Vec<&T> {
+    fn search<'a>(cards: &'a Vec<T>, query: &str) -> Vec<&'a T> {
         let exact_matches: Vec<&T> = cards
-            .iter()
-            .filter(|card| card.name().to_lowercase() == query.as_ref().to_lowercase())
+            .par_iter()
+            .filter(|card| card.name().to_lowercase() == query.to_lowercase())
             .collect();
 
         let matches = if !exact_matches.is_empty() {
@@ -57,9 +58,9 @@ pub trait CardSearch<T: DbCard + DeserializeOwned> {
         // if can't find exact matches, try to fuzzy match
         } else {
             cards
-                .iter()
+                .par_iter()
                 .filter(|card| {
-                    strsim::levenshtein(&card.name().to_lowercase(), &query.as_ref().to_lowercase())
+                    strsim::levenshtein(&card.name().to_lowercase(), &query.to_lowercase())
                         <= EDIT_DISTANCE
                 })
                 .collect()

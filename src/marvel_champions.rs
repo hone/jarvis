@@ -1,4 +1,5 @@
 use crate::{CardSearch, DbCard};
+use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use serde::Deserialize;
 
 const IMAGE_HOST: &str = "https://marvelcdb.com";
@@ -45,7 +46,7 @@ impl CardSearch<Card> for API {
     /// remove card duplicates
     fn process_search(results: Vec<&Card>) -> Vec<&Card> {
         results
-            .into_iter()
+            .into_par_iter()
             .filter(|card| card.duplicate_of_code.is_none())
             .collect()
     }

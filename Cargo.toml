@@ -7,6 +7,7 @@ edition = "2018"
 
 [dependencies]
 dotenv = "0.15"
+rayon = "1.5"
 reqwest = { version = "0.11", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 serenity = { version = "0.10", default-features = false, features = ["client", "framework", "gateway", "model", "rustls_backend", "standard_framework", "unstable_discord_api"] }
