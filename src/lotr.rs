@@ -43,14 +43,13 @@ mod tests {
 
     #[test]
     fn it_parses_all_cards() {
-        let result = tokio_test::block_on(Search::cards());
+        let result = tokio_test::block_on(API::cards());
 
         assert!(result.is_ok());
     }
 
     #[test]
     fn it_searches() {
-        let search = Search {};
         let cards = cards_from_fixtures();
 
         let results: Vec<&Box<Card>> = API::search(&cards, "yazan");

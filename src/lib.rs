@@ -1,3 +1,4 @@
+pub mod discord;
 pub mod lotr;
 pub mod marvel_champions;
 
@@ -5,6 +6,11 @@ use serde::de::DeserializeOwned;
 use serenity::async_trait;
 
 const EDIT_DISTANCE: usize = 3;
+
+pub enum Card {
+    LOTR(lotr::Card),
+    MarvelChampions(marvel_champions::Card),
+}
 
 /// Trait for ThronesDB Card API
 pub trait DbCard {

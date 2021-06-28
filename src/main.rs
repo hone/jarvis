@@ -1,23 +1,21 @@
-use jarvis::{marvel_champions, CardSearch};
+use jarvis::{
+    discord::{LOTRCards, MarvelChampionsCards, CARD_COMMAND},
+    lotr, marvel_champions, CardSearch,
+};
 use serenity::client::Client;
 use serenity::{
     async_trait,
+    framework::standard::{macros::group, StandardFramework},
     model::{
         gateway::Ready,
         interactions::{
             ApplicationCommand, Interaction, InteractionData, InteractionResponseType,
             InteractionType,
         },
-        prelude::Message,
     },
-    prelude::{Context, EventHandler, TypeMapKey},
+    prelude::{Context, EventHandler},
 };
 use std::env;
-
-struct MarvelChampionsCards;
-impl TypeMapKey for MarvelChampionsCards {
-    type Value = Vec<Box<marvel_champions::Card>>;
-}
 
 struct SlashCommandHandler;
 
@@ -50,39 +48,6 @@ impl EventHandler for SlashCommandHandler {
         }
     }
 
-    async fn message(&self, ctx: Context, msg: Message) {
-        let data = ctx.data.read().await;
-        let cards = data
-            .get::<MarvelChampionsCards>()
-            .expect("Expected MarvelChampionsCards in TypeMap");
-
-        let parts = msg.content.split_whitespace().collect::<Vec<&str>>();
-        if parts.len() > 0 {
-            let command = parts[0];
-            let args = &parts[1..];
-            if command == "!card" {
-                let query = args.join(" ");
-                let cards = marvel_champions::API::search(&cards, &query);
-                for card in cards {
-                    if let Some(image) = card.image_url() {
-                        msg.channel_id
-                            .send_message(&ctx.http, |m| {
-                                m.embed(|e| {
-                                    e.image(image);
-
-                                    e
-                                });
-
-                                m
-                            })
-                            .await
-                            .unwrap();
-                    }
-                }
-            }
-        }
-    }
-
     async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
 
@@ -100,6 +65,10 @@ impl EventHandler for SlashCommandHandler {
     }
 }
 
+#[group]
+#[commands(card)]
+struct General;
+
 #[tokio::main]
 async fn main() {
     #[cfg(debug_assertions)]
@@ -113,16 +82,25 @@ async fn main() {
         .expect("application id is not a valid id");
     let marvel_champions_cards = marvel_champions::API::cards()
         .await
-        .expect("Could net fetch cards from marvel champions");
+        .expect("Could net fetch cards for marvel champions");
+    let lotr_cards = lotr::API::cards()
+        .await
+        .expect("Colud not fetch cards for lotr");
 
     let mut client = Client::builder(discord_token)
         .event_handler(SlashCommandHandler)
+        .framework(
+            StandardFramework::new()
+                .configure(|c| c.prefix("!"))
+                .group(&GENERAL_GROUP),
+        )
         .application_id(application_id)
         .await
         .expect("Error creating client.");
     {
         let mut data = client.data.write().await;
         data.insert::<MarvelChampionsCards>(marvel_champions_cards);
+        data.insert::<LOTRCards>(lotr_cards);
     }
 
     if let Err(why) = client.start().await {
