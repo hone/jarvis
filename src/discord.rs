@@ -34,7 +34,7 @@ pub async fn card(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
         "marvel" => {
             let cards = data
                 .get::<MarvelChampionsCards>()
-                .expect("Expected LOTRCards in TypeMap");
+                .expect("Expected MarvelChampionsCards in TypeMap");
             display_card_images(&ctx, &msg, &marvel_champions::API::search(&cards, &query)).await?
         }
         _ => {
