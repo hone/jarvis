@@ -3,8 +3,9 @@ use serenity::{
     client::Context,
     framework::standard::{macros::command, Args, CommandResult},
     model::prelude::Message,
-    prelude::{SerenityError, TypeMapKey},
+    prelude::{TypeMap, TypeMapKey},
 };
+use std::str::FromStr;
 
 pub struct MarvelChampionsCards;
 impl TypeMapKey for MarvelChampionsCards {
@@ -16,6 +17,75 @@ impl TypeMapKey for LOTRCards {
     type Value = Vec<lotr::Card>;
 }
 
+enum Game {
+    LOTR,
+    MarvelChampions,
+}
+
+impl FromStr for Game {
+    type Err = ();
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        match input.to_lowercase().as_str() {
+            "lotr" => Ok(Self::LOTR),
+            "marvel" => Ok(Self::MarvelChampions),
+            _ => Err(()),
+        }
+    }
+}
+
+impl Game {
+    fn search(
+        card_db: &TypeMap,
+        game: impl AsRef<str>,
+        query: impl AsRef<str>,
+    ) -> Option<Vec<CardDisplay>> {
+        match Game::from_str(game.as_ref()) {
+            Ok(Game::LOTR) => {
+                let cards = card_db
+                    .get::<LOTRCards>()
+                    .expect("Expected LOTRCards in TypeMap");
+                Some(
+                    lotr::API::search(&cards, query.as_ref())
+                        .into_iter()
+                        .map(|card| card.into())
+                        .collect(),
+                )
+            }
+            Ok(Game::MarvelChampions) => {
+                let cards = card_db
+                    .get::<MarvelChampionsCards>()
+                    .expect("Expected MarvelChampionsCards in TypeMap");
+                Some(
+                    marvel_champions::API::search(&cards, query.as_ref())
+                        .into_iter()
+                        .map(|card| card.into())
+                        .collect(),
+                )
+            }
+            _ => None,
+        }
+    }
+}
+
+/// A struct to hold the card data for display, so we don't need a Vec<Box<dyn DbCard>>
+struct CardDisplay<'a> {
+    pub name: &'a str,
+    pub image_url: Option<&'a str>,
+}
+
+impl<'a, T> From<&'a T> for CardDisplay<'a>
+where
+    T: DbCard,
+{
+    fn from(card: &'a T) -> Self {
+        CardDisplay {
+            name: card.name(),
+            image_url: card.image(),
+        }
+    }
+}
+
 #[command]
 #[min_args(2)]
 #[usage = "<game> <query>"]
@@ -24,48 +94,27 @@ pub async fn card(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
     let query = args.rest();
     let data = ctx.data.read().await;
 
-    match game.as_str() {
-        "lotr" => {
-            let cards = data
-                .get::<LOTRCards>()
-                .expect("Expected LOTRCards in TypeMap");
-            display_card_images(&ctx, &msg, &lotr::API::search(&cards, &query)).await?
-        }
-        "marvel" => {
-            let cards = data
-                .get::<MarvelChampionsCards>()
-                .expect("Expected MarvelChampionsCards in TypeMap");
-            display_card_images(&ctx, &msg, &marvel_champions::API::search(&cards, &query)).await?
-        }
-        _ => {
-            msg.channel_id
-                .say(&ctx.http, "only valid games are: lotr, marvel")
-                .await?;
-        }
-    };
+    let cards = Game::search(&data, &game, &query);
+    if let Some(cards) = cards {
+        for card in cards {
+            if let Some(image) = card.image_url {
+                msg.channel_id
+                    .send_message(&ctx.http, |m| {
+                        m.embed(|e| {
+                            e.image(image);
 
-    Ok(())
-}
+                            e
+                        });
 
-async fn display_card_images<T: DbCard>(
-    ctx: &Context,
-    msg: &Message,
-    cards: &Vec<&T>,
-) -> Result<(), SerenityError> {
-    for card in cards {
-        if let Some(image) = card.image_url() {
-            msg.channel_id
-                .send_message(&ctx.http, |m| {
-                    m.embed(|e| {
-                        e.image(image);
-
-                        e
-                    });
-
-                    m
-                })
-                .await?;
+                        m
+                    })
+                    .await?;
+            }
         }
+    } else {
+        msg.channel_id
+            .say(&ctx.http, "only valid games are: lotr, marvel")
+            .await?;
     }
 
     Ok(())

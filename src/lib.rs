@@ -8,11 +8,6 @@ use serenity::async_trait;
 
 const EDIT_DISTANCE: usize = 2;
 
-pub enum Card {
-    LOTR(lotr::Card),
-    MarvelChampions(marvel_champions::Card),
-}
-
 /// Trait for ThronesDB Card API
 pub trait DbCard {
     fn name(&self) -> &str;
@@ -48,9 +43,10 @@ pub trait CardSearch<T: DbCard + DeserializeOwned + Sync> {
     /// search for cards that match the name. If no exact match is found will try to do a fuzzy
     /// search.
     fn search<'a>(cards: &'a Vec<T>, query: &str) -> Vec<&'a T> {
+        let query_lowercase = query.to_lowercase();
         let exact_matches: Vec<&T> = cards
             .par_iter()
-            .filter(|card| card.name().to_lowercase() == query.to_lowercase())
+            .filter(|card| card.name().to_lowercase() == query_lowercase)
             .collect();
 
         let matches = if !exact_matches.is_empty() {
@@ -60,7 +56,7 @@ pub trait CardSearch<T: DbCard + DeserializeOwned + Sync> {
             cards
                 .par_iter()
                 .filter(|card| {
-                    strsim::levenshtein(&card.name().to_lowercase(), &query.to_lowercase())
+                    strsim::levenshtein(&card.name().to_lowercase(), &query_lowercase)
                         <= EDIT_DISTANCE
                 })
                 .collect()
