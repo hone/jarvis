@@ -5,8 +5,12 @@ use jarvis::{
 use serenity::client::Client;
 use serenity::{
     async_trait,
-    framework::standard::{macros::group, StandardFramework},
+    framework::standard::{
+        macros::{group, hook},
+        CommandError, StandardFramework,
+    },
     model::{
+        channel::Message,
         gateway::Ready,
         interactions::{
             ApplicationCommand, Interaction, InteractionData, InteractionResponseType,
@@ -16,7 +20,9 @@ use serenity::{
     prelude::{Context, EventHandler},
 };
 use std::env;
+use tracing::{error, info, instrument};
 
+#[derive(Debug)]
 struct SlashCommandHandler;
 
 #[async_trait]
@@ -39,7 +45,7 @@ impl EventHandler for SlashCommandHandler {
                             })
                             .await
                         {
-                            println!("Cannot respond to slash command: {}", why);
+                            error!("Cannot respond to slash command: {}", why);
                         }
                     }
                     _ => {}
@@ -48,20 +54,37 @@ impl EventHandler for SlashCommandHandler {
         }
     }
 
+    #[instrument(skip(ctx))]
     async fn ready(&self, ctx: Context, ready: Ready) {
-        println!("{} is connected!", ready.user.name);
+        info!("{} is connected!", ready.user.name);
 
-        ApplicationCommand::create_global_application_command(&ctx.http, |cmd| {
+        if let Err(err) = ApplicationCommand::create_global_application_command(&ctx.http, |cmd| {
             cmd.name("ping").description("A simple ping command")
         })
         .await
-        .unwrap();
+        {
+            error!("Could not create global application command: {:?}", err);
+        }
         let interactions = ApplicationCommand::get_global_application_commands(&ctx.http).await;
 
-        println!(
+        info!(
             "I have the following global slash command(s): {:?}",
             interactions
         );
+    }
+}
+
+#[hook]
+#[instrument]
+// Currently, the instrument macro doesn't work with commands. Using the before hook instead.
+async fn before(_ctx: &Context, _msg: &Message, command_name: &str) -> bool {
+    true
+}
+
+#[hook]
+async fn after(_ctx: &Context, _msg: &Message, cmd: &str, err: Result<(), CommandError>) {
+    if let Err(why) = err {
+        error!("Error in {}: {:?}", cmd, why);
     }
 }
 
@@ -70,9 +93,12 @@ impl EventHandler for SlashCommandHandler {
 struct General;
 
 #[tokio::main]
+#[instrument]
 async fn main() {
     #[cfg(debug_assertions)]
     dotenv::dotenv().ok();
+
+    tracing_subscriber::fmt::init();
 
     let discord_token =
         env::var("DISCORD_TOKEN").expect("Please provide the env var DISCORD_TOKEN");
@@ -92,6 +118,8 @@ async fn main() {
         .framework(
             StandardFramework::new()
                 .configure(|c| c.prefix("!"))
+                .before(before)
+                .after(after)
                 .group(&GENERAL_GROUP),
         )
         .application_id(application_id)
@@ -104,6 +132,6 @@ async fn main() {
     }
 
     if let Err(why) = client.start().await {
-        println!("an error occurred while running the client: {:?}", why);
+        error!("an error occurred while running the client: {:?}", why);
     }
 }

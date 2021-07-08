@@ -6,6 +6,7 @@ use serenity::{
     prelude::{TypeMap, TypeMapKey},
 };
 use std::str::FromStr;
+use tracing::info;
 
 pub struct MarvelChampionsCards;
 impl TypeMapKey for MarvelChampionsCards {
@@ -71,7 +72,7 @@ impl Game {
 /// A struct to hold the card data for display, so we don't need a Vec<Box<dyn DbCard>>
 struct CardDisplay<'a> {
     pub name: &'a str,
-    pub image_url: Option<&'a str>,
+    pub image_url: Option<String>,
 }
 
 impl<'a, T> From<&'a T> for CardDisplay<'a>
@@ -81,7 +82,7 @@ where
     fn from(card: &'a T) -> Self {
         CardDisplay {
             name: card.name(),
-            image_url: card.image(),
+            image_url: card.image_url(),
         }
     }
 }
@@ -96,20 +97,36 @@ pub async fn card(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
 
     let cards = Game::search(&data, &game, &query);
     if let Some(cards) = cards {
-        for card in cards {
-            if let Some(image) = card.image_url {
-                msg.channel_id
-                    .send_message(&ctx.http, |m| {
-                        m.embed(|e| {
-                            e.image(image);
+        info!(
+            "Cards found in '{}' for '{}' from '{}': {}",
+            &game,
+            &query,
+            &msg.author.name,
+            cards.len()
+        );
+        if cards.len() > 0 {
+            for card in cards {
+                if let Some(image) = card.image_url {
+                    msg.channel_id
+                        .send_message(&ctx.http, |m| {
+                            m.embed(|e| {
+                                e.image(image);
 
-                            e
-                        });
+                                e
+                            });
 
-                        m
-                    })
-                    .await?;
+                            m
+                        })
+                        .await?;
+                }
             }
+        } else {
+            msg.channel_id
+                .say(
+                    &ctx.http,
+                    format!("No cards found in game '{}' for '{}'.", &game, &query),
+                )
+                .await?;
         }
     } else {
         msg.channel_id
