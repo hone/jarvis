@@ -77,7 +77,7 @@ impl EventHandler for SlashCommandHandler {
 #[hook]
 #[instrument]
 // Currently, the instrument macro doesn't work with commands. Using the before hook instead.
-async fn before(_ctx: &Context, _msg: &Message, command_name: &str) -> bool {
+async fn before(_ctx: &Context, _msg: &Message, _cmd: &str) -> bool {
     true
 }
 
@@ -106,12 +106,8 @@ async fn main() {
         .expect("Expected an application id in the environment")
         .parse()
         .expect("application id is not a valid id");
-    let marvel_champions_cards = marvel_champions::API::cards()
-        .await
-        .expect("Could net fetch cards for marvel champions");
-    let lotr_cards = lotr::API::cards()
-        .await
-        .expect("Colud not fetch cards for lotr");
+    let marvel_champions_cards = tokio::spawn(marvel_champions::API::cards());
+    let lotr_cards = tokio::spawn(lotr::API::cards());
 
     let mut client = Client::builder(discord_token)
         .event_handler(SlashCommandHandler)
@@ -127,8 +123,18 @@ async fn main() {
         .expect("Error creating client.");
     {
         let mut data = client.data.write().await;
-        data.insert::<MarvelChampionsCards>(marvel_champions_cards);
-        data.insert::<LOTRCards>(lotr_cards);
+        data.insert::<MarvelChampionsCards>(
+            marvel_champions_cards
+                .await
+                .expect("Could not execute marvel champions card fetch")
+                .expect("Could not fetch cards for marvel champions"),
+        );
+        data.insert::<LOTRCards>(
+            lotr_cards
+                .await
+                .expect("Could not execute lotr card fetch")
+                .expect("Colud not fetch cards for lotr"),
+        );
     }
 
     if let Err(why) = client.start().await {
